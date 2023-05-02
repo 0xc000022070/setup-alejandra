@@ -1,5 +1,8 @@
 name: Set up Alejandra
 description: Installs the Alejandra nix formatter
+branding:
+  icon: package
+  color: orange
 runs:
   using: composite
   steps:
