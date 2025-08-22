@@ -1,0 +1,69 @@
+name: Upgrade alejandra CLI
+
+on:
+  schedule:
+    - cron: "0 14 * * 1" # every monday
+  workflow_dispatch:
+
+jobs:
+  upgrade-alejandra:
+    name: Upgrade alejandra CLI to latest version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Code Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Get current version from action.yml
+        id: current-version
+        run: |
+          CURRENT_VERSION=$(grep 'ALEJANDRA_VERSION=' action.yml | sed 's/.*ALEJANDRA_VERSION="\([^"]*\)".*/\1/')
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version from action.yml: $CURRENT_VERSION"
+
+      - name: Get latest version from GitHub releases
+        id: latest-version
+        run: |
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/kamadorueda/alejandra/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+          echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: ${{ steps.current-version.outputs.current_version }}"
+          echo "Latest version: $LATEST_VERSION"
+
+      - name: Check if update is needed
+        id: check-update
+        run: |
+          if [ "${{ steps.current-version.outputs.current_version }}" != "${{ steps.latest-version.outputs.latest_version }}" ]; then
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+            echo "Update needed: ${{ steps.current-version.outputs.current_version }} -> ${{ steps.latest-version.outputs.latest_version }}"
+          else
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+            echo "No update needed. Current version is up to date."
+          fi
+
+      - name: Update version file
+        if: steps.check-update.outputs.update_needed == 'true'
+        run: echo "${{ steps.latest-version.outputs.latest_version }}" > version.txt
+
+      - name: Update action.yml
+        if: steps.check-update.outputs.update_needed == 'true'
+        run: |
+          sed -i "s/ALEJANDRA_VERSION=\"[^\"]*\"/ALEJANDRA_VERSION=\"${{ steps.latest-version.outputs.latest_version }}\"/" action.yml
+
+      - name: Create PR
+        if: steps.check-update.outputs.update_needed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          commit-message: "chore(deps): upgrade alejandra to v${{ steps.latest-version.outputs.latest_version }}"
+          title: "chore(deps): upgrade alejandra to v${{ steps.latest-version.outputs.latest_version }}"
+          branch: "chore/upgrade-alejandra-${{ steps.latest-version.outputs.latest_version }}"
+          delete-branch: true
+          reviewers: luisnquin
+          body: |
+            This PR updates Alejandra from version ${{ steps.current-version.outputs.current_version }} to ${{ steps.latest-version.outputs.latest_version }}.

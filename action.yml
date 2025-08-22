@@ -9,7 +9,9 @@ runs:
     - name: Install Alejandra
       shell: bash
       run: |
-        wget https://github.com/kamadorueda/alejandra/releases/download/3.0.0/alejandra-x86_64-unknown-linux-musl
+        ALEJANDRA_VERSION="3.0.0"
+
+        wget https://github.com/kamadorueda/alejandra/releases/download/${ALEJANDRA_VERSION}/alejandra-x86_64-unknown-linux-musl
         mv alejandra-x86_64-unknown-linux-musl alejandra
         chmod +x alejandra
         mv alejandra /usr/local/bin
